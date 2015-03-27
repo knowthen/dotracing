@@ -225,7 +225,7 @@ function setup (io) {
     });
 
     socket.on('game:changes:start', function(data, cb){
-
+      debug('game:changes:start called');
       let limit, filter;
       limit = data.limit || 100; 
       filter = data.filter || {};
@@ -241,6 +241,7 @@ function setup (io) {
                 console.log(err);
               }
               else{
+                debug('emitting', record);
                 socket.emit(data.changesEventName, record);
               }
             });
@@ -251,6 +252,7 @@ function setup (io) {
           function stopCursor () {
             if(cursor){
               cursor.close();
+              debug('closing cursor');
             }
             socket.removeListener(data.stopChangesEventName, stopCursor);
             socket.removeListener('disconnect', stopCursor);
