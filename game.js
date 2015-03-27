@@ -324,6 +324,7 @@ function setup (io) {
     });
 
     socket.on('lap', function(info, cb){
+      debug('lap ', profile);
       r.table('game')
         .get(info.gameId)
         .update({
@@ -353,23 +354,8 @@ function setup (io) {
     });
 
     socket.on('finish', function(info, cb){
-      var finishPlayer, score;
+      var score;
       debug('finished', info, profile);
-      // r.table('game')
-      //   .get(info.gameId)
-      //   .then(function(game){
-      //     game.players.forEach(function(player){
-      //       if(player.id === info.playerId){
-      //         finishPlayer = player;
-      //         player.place = info.place;
-      //         player.raceTime = info.raceTime;
-      //         player.lapTime = info.lapTime;
-      //       }
-      //     });
-      //     r.table('game')
-      //       .get(info.gameId)
-      //       .update(game)
-      //       .then();
 
       r.table('game')
         .get(info.gameId)
