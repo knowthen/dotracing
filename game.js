@@ -354,6 +354,7 @@ function setup (io) {
 
     socket.on('finish', function(info, cb){
       var finishPlayer, score;
+      debug('finished', info, profile);
       // r.table('game')
       //   .get(info.gameId)
       //   .then(function(game){
