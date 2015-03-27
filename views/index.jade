@@ -1,0 +1,15 @@
+doctype html
+html
+  head
+    meta(name='viewport', content='initial-scale=1, maximum-scale=1, user-scalable=no')
+    link(rel='stylesheet', href='/css/bootstrap.css')
+    link(rel='stylesheet', href='/css/animate.css')
+    link(rel='stylesheet', href='/css/app.css')
+  body(ng-app='dotRacing')
+    include ./header.jade
+    div.container-fluid#content(ui-view)
+    include ./vendorscripts.jade
+    include ./ngtemplates.jade
+    script(src='/js/game.js')
+    script(src='/js/app.js')
+    

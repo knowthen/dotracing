@@ -1,0 +1,22 @@
+script(type='text/ng-template', id='templates/home.html')
+  .row
+    .col-sm-12
+      h3(ng-if='supported.client') Join a game  
+      h3(ng-if='!supported.client') Sorry Your Phone won't work!
+      .list-group
+        .list-group-item(ng-repeat='game in games | filter: {status: "new"}')
+          .row
+            .col-xs-10
+              h4.list-group-item-heading {{game.name}}
+              p.list-group-item-text {{game.description | limitTo:80}} 
+            .col-xs-2
+              a.pull-right.btn.btn-success.btn-lg(ng-if='supported.client', ng-click='join(game)') Join
+    
+
+script(type='text/ng-template', id='templates/game.html')
+  .row
+    .col-xs-12
+      h1 {{game.name}}
+      p {{game.description}}
+
+      button.btn.btn-lg.btn-success.col-xs-12.grow(ng-click='grow()') Grow

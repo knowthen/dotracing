@@ -1,0 +1,530 @@
+'use strict';
+let debug   = require('debug')('dotracing'),
+    _       = require('lodash'),
+    jwt     = require('jsonwebtoken'),
+    config  = require('./config'),
+    r       = require('./dash');
+
+function setup (io) {
+
+  io.on('connection', function(socket){
+    debug('connection made');
+    let tokenExpDate = null;
+    let profile = null;
+    let currentGame = null;
+    
+    function isAuthenticated () {
+      return tokenExpDate && tokenExpDate >= new Date;
+    }
+    
+    socket.on('authenticate', function(user, cb){
+      try{
+        debug('authenticate', user);
+        let claim = jwt.verify(user.token, new Buffer(config.auth.secret, 'base64'));
+        
+        // let d = new Date;
+        // d.setDate(d.getDate() + 30);
+        // let claim = {
+        //   exp: d.getTime()
+        // }
+
+        if(claim && claim.exp){
+          tokenExpDate = new Date(claim.exp * 1000);
+          profile = user.profile;
+          profile.id = profile.user_id;
+        }
+        if(cb){
+          cb(null, claim);
+        }
+        
+      }
+      catch(err){
+        if(cb){
+          cb(err);
+        }
+        
+      }
+    });
+    
+    socket.on('unauthenticate', function(data, cb){
+      debug('unauthenticate');
+      tokenExpDate = null;
+      profile = null;
+      cb();
+    });
+
+    socket.on('player:ready', function(gameId){
+      r.table('game')
+        .get(gameId)
+        .then(function(game){
+          game.players.forEach(function(player){
+            if(profile && player.id === profile.id){
+              currentGame = game;
+              socket.join(gameId);
+            }
+          })
+        })
+    });
+
+    function joinGame (game, profile, cb) {
+      let joined = false;
+      let players = game.players;
+      let alreadyInGame = false;
+      for (let i = 0; i < players.length; i++) {
+        joined = players[i].id === profile.id;
+        if(joined){
+          break;
+        }
+      };
+      
+      if(joined){
+        if(game.started){
+          socket.emit('game:started');
+        }
+        cb(null, game)
+      }
+      else if (game.players.length < 4){
+        r.table('game')
+          .get(game.id)
+          .update(function(game){
+              return r.branch(game('players').count().lt(4),{
+                players: game('players').append(profile)
+              }, {});
+            })
+          .then(function(result){
+            if(result.replaced > 0){
+              currentGame = game;
+              socket.to(game.id).emit('player:add', profile);
+              cb(null, game);
+            }
+            else if (result.unchanged > 0){
+              cb(new Error('Game Already Full, Sorry!'));
+            }
+          })
+      }
+
+      else{
+        let err = new Error('Game Already Full, Sorry!');
+
+        cb(err);
+      }
+    }
+
+    socket.on('game:started', function(gameId, cb){
+      r.table('game')
+        .get(gameId)
+        .update({
+          started: true,
+          status: 'running'
+        })
+        .then(function(){
+          socket.to(gameId).emit('game:started');
+        })
+        .catch(function(err){
+          if(cb){
+            cb(err);
+          }
+          console.log(err);
+        })
+    });
+
+    socket.on('game:stopped', function(gameId, cb){
+      socket.to(gameId).emit('game:stopped');
+      socket.leave(gameId);
+      if(cb){
+        cb(null, gameId);
+      }
+    });
+
+    socket.on('game:join', function(id, cb){
+      if(!isAuthenticated()){
+        cb(new Error('Must be logged in to join game!'))
+      }
+      else{
+        r.table('game')
+          .get(id)
+          .then(function(game){
+            joinGame(game, profile, cb);
+          })
+          .catch(function(err){
+            cb(err);
+          });
+        //   .run(gameFound);
+        
+        // function gameFound (err, game) {
+        //   if(err){
+        //     cb(err);
+        //   }
+        //   else{
+        //     joinGame(game, profile, cb);
+        //   }
+        // }
+      }
+    });
+    
+    socket.on('game:findById', function(id, cb){
+      r.table('game')
+        .get(id)
+        .run(cb);
+    });
+
+    socket.on('join:room', function(gameId){
+      socket.join(gameId);
+    });
+
+
+    socket.on('leave:game', function(gameId){
+      socket.leave(gameId);
+    });
+    
+
+    socket.on('game:add', function(record, cb){
+      record = _.pick(record, 'name', 'description');
+      record.createdAt = new Date();
+      record.status = 'new';
+      record.players = [];
+      r.table('game')
+        .insert(record)
+        .then(function(result){
+          record.id = result.generated_keys[0];
+          if(cb){
+            cb(null, record);
+          }
+          
+        })
+        .catch(function(err){
+          if(cb){
+            cb(err);
+          }
+        })
+
+        // .run(function(err, result){
+        //   if(err){
+        //     cb(err);
+        //   }
+        //   else{
+        //     record.id = result.generated_keys[0];
+        //     // socket.join(record.id);
+        //     cb(null, record);
+        //   }
+        // })
+    });
+
+    
+
+    socket.on('player:color', function(data, cb){
+
+      r.table('game')
+        .get(data.gameId)
+        .update({
+          players: r.row('players').map(function(player) {
+              return r.branch(
+                player('id').eq(data.playerId).default(false),
+                player.merge({color: data.color}),
+                player
+              );
+            })
+          })
+        .then(function(){
+          cb(null, data);
+        })
+        .catch(function(err){
+          cb(err)
+        });
+
+      // r.table('game')
+      //   .get(data.gameId)
+      //   .then(function(game){
+      //     game.players.forEach(function(player){
+      //       if(player.id === data.playerId){
+      //         player.color = data.color;
+      //       }
+      //     });
+      //     r.table('game')
+      //       .get(data.gameId)
+      //       .update(game)
+      //       .then();
+      //   })
+    });
+
+    socket.on('game:changes:start', function(data, cb){
+
+      let limit, filter;
+      limit = data.limit || 100; 
+      filter = data.filter || {};
+      r.table('game')
+        .orderBy({index: r.desc('createdAt')})
+        .filter(filter)
+        .limit(limit)
+        .changes()
+        .then(function(cursor){
+          if(cursor){
+            cursor.each(function(err, record){
+              if(err){
+                console.log(err);
+              }
+              else{
+                socket.emit(data.changesEventName, record);
+              }
+            });
+          }
+          socket.on(data.stopChangesEventName, stopCursor);
+          socket.on('disconnect', stopCursor);
+
+          function stopCursor () {
+            if(cursor){
+              cursor.close();
+            }
+            socket.removeListener(data.stopChangesEventName, stopCursor);
+            socket.removeListener('disconnect', stopCursor);
+          }
+          cb(null, data);
+        })
+        .catch(function(err){
+          cb(err);
+        })
+
+      //   .run({cursor: true}, handleChange);
+
+      // function handleChange(err, cursor){
+      //   if(err){
+      //     console.log(err); 
+      //   }
+      //   else{
+      //     if(cursor){
+      //       cursor.each(function(err, record){
+      //         if(err){
+      //           console.log(err);
+      //         }
+      //         else{
+      //           socket.emit(data.changesEventName, record);
+      //         }
+      //       });
+      //     }
+      //   }
+      //   socket.on(data.stopChangesEventName, stopCursor);
+      //   socket.on('disconnect', stopCursor);
+
+      //   function stopCursor () {
+      //     if(cursor){
+      //       cursor.close();
+      //     }
+      //     socket.removeListener(data.stopChangesEventName, stopCursor);
+      //     socket.removeListener('disconnect', stopCursor);
+      //   }
+
+      // }
+    });
+    
+    socket.on('game:record:changes:start', function(id){
+      r.table('game')
+        .get(id)
+        .changes()
+        .run({cursor: true}, handleChange);
+
+      function handleChange(err, cursor){
+        if(err){
+          console.log(err); 
+        }
+        else{
+          if(cursor){
+            cursor.each(function(err, record){
+              if(err){
+                console.log(err);
+              }
+              else{
+                socket.emit('game:record:changes:' + id, record);
+              }
+            });
+          }
+
+        }
+        socket.on('game:record:changes:stop:' + id, stopCursor);
+        socket.on('disconnect', stopCursor);
+
+        function stopCursor () {
+          if(cursor){
+            cursor.close();
+            console.log('closing cursor ' + id);
+          }
+          socket.removeListener('game:record:changes:stop:' + id, stopCursor);
+          socket.removeListener('disconnect', stopCursor);
+        }
+
+      }
+    });
+    // let forceCounter = 0;
+    // let lastTime;
+    socket.on('force', function(force){
+      // forceCounter++;
+      // if(forceCounter % 10 === 0){
+      //   let thisTime = new Date();
+      //   if(thisTime && lastTime){
+      //     console.log((thisTime.getTime() - lastTime.getTime())/1000);
+
+          
+      //   }
+      //   lastTime = thisTime;
+      // }
+      if(profile && currentGame){
+        force.playerId = profile.id;
+        if(currentGame){
+          socket.to(currentGame.id).emit('force', force);
+        }
+      }
+    });
+
+    socket.on('grow', function(cb){
+      if(profile && currentGame){
+        if(currentGame){
+          socket.to(currentGame.id).emit('grow', profile.id);
+        }
+      }
+    });
+
+    socket.on('lap', function(info, cb){
+      // r.table('game')
+      //   .get(info.gameId)
+      //   .then(function(game){
+      //     game.players.forEach(function(player){
+      //       if(player.id === info.playerId){
+      //         player.lap = info.lap;
+      //         player.lapTime = info.lapTime;
+      //       }
+      //     });
+      //     r.table('game')
+      //       .get(info.gameId)
+      //       .update(game)
+      //       .then();
+      //   });
+
+      r.table('game')
+        .get(info.gameId)
+        .update({
+          players: r.row('players').map(function(player) {
+              return r.branch(
+                player('id').eq(info.playerId).default(false),
+                player.merge({
+                  lap: info.lap,
+                  lapTime: info.lapTime
+                }),
+                player
+              );
+            })
+          })
+        .then(function(){
+          cb(null, info);
+        })
+        .catch(function(err){
+          cb(err)
+        });
+
+    });
+
+    socket.on('finish', function(info, cb){
+      var finishPlayer, score;
+      // r.table('game')
+      //   .get(info.gameId)
+      //   .then(function(game){
+      //     game.players.forEach(function(player){
+      //       if(player.id === info.playerId){
+      //         finishPlayer = player;
+      //         player.place = info.place;
+      //         player.raceTime = info.raceTime;
+      //         player.lapTime = info.lapTime;
+      //       }
+      //     });
+      //     r.table('game')
+      //       .get(info.gameId)
+      //       .update(game)
+      //       .then();
+
+      r.table('game')
+        .get(info.gameId)
+        .update({
+          players: r.row('players').map(function(player) {
+              return r.branch(
+                player('id').eq(info.playerId).default(false),
+                player.merge({
+                  place: info.place,
+                  lapTime: info.lapTime,
+                  raceTime: info.raceTime
+                }),
+                player
+              );
+            })
+          })
+        .then(function(){
+          cb(null, info);
+        })
+        .catch(function(err){
+          cb(err)
+        });
+      r.table('game')
+        .get(info.gameId)
+        .then(function(game){
+          score = {
+            game: {
+              id: game.id,
+              name: game.name
+            },
+            player: {
+              id: info.playerId,
+              nickname: profile.nickname,
+              picture: profile.picture
+            },
+            finish: info.raceTime,
+            place: info.place
+          };
+          r.table('score')
+            .insert(score)
+            .then();
+        });
+      
+    });
+    
+    socket.on('score:changes:start', function(data, cb){
+      let limit, filter;
+      limit = data.limit || 100;
+      filter = data.filter || {};
+      r.table('score')
+        .orderBy({index: 'finish'})
+        .filter(filter)
+        .limit(limit)
+        .changes()
+        .then(function(cursor){
+          cursor.each(function(err, record){
+            if(err){
+              console.log(err);
+            }
+            socket.emit(data.changesEventName, record);
+          });
+          socket.on(data.stopChangesEventName, stopCursor);
+          socket.on('disconnect', stopCursor);
+          function stopCursor () {
+            
+            if(cursor){
+              cursor.close();
+            }
+            socket.removeListener(data.stopChangesEventName, stopCursor);
+            socket.removeListener('disconnect', stopCursor);
+          }
+          if(cb){
+            cb(null, data);
+          }
+        })
+        .catch(function(err){
+          if(cb){
+            cb(err);
+          }
+          console.log(err);
+        });
+    });
+
+  });
+
+}
+
+module.exports = {
+  setup: setup
+};

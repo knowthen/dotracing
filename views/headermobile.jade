@@ -1,0 +1,14 @@
+.navbar.navbar-default.navbar-fixed-top
+  .container-fluid
+    .navbar-header
+      a.navbar-brand(ui-sref='home') Dot Racing
+      button.navbar-toggle(type='button', data-toggle='collapse', data-target='#navbar-main')
+        span.icon-bar
+        span.icon-bar
+        span.icon-bar
+    #navbar-main.navbar-collapse.collapse
+      ul.nav.navbar-nav.navbar-right(ng-controller='LoginCtrl')
+        li(ng-if='!auth.isAuthenticated')
+          a(ng-click='login()') Login
+        li(ng-if='auth.isAuthenticated')
+          a(ng-click='logout()') Logout ({{auth.profile.nickname}})

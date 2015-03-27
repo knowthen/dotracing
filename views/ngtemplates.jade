@@ -1,0 +1,117 @@
+script(type='text/ng-template', id='templates/home.html')
+  .jumbotron
+    .row
+      .col-xs-3
+        img.img-responsive(src='/img/dotracingicon.png')
+      .col-xs-9
+        h1 Simple, Fun Realtime Multiplayer Game
+        p It's simple, you get a dot and you race against other players dots.
+          br
+          | The fun part is you  
+          | use your 
+          b cell phone 
+          | as a 
+          b game controller.
+        p 
+          a.btn.btn-primary.btn-lg(ui-sref='gameadd', ng-if='supported.host') Host A Game
+
+  .row
+    .col-sm-12
+    .col-sm-12
+      h3 Games you can join  
+        span(ng-if='!supported.client') (From Cell Phone)
+
+      .list-group
+        .list-group-item(ng-repeat='game in games | filter: {status: "new"}')
+          .row
+            .col-xs-6
+              h4.list-group-item-heading {{game.name}}
+              p.list-group-item-text {{game.description | limitTo:80}} 
+                br
+                span(ng-repeat='player in game.players')
+                  span.label.label-info {{player.nickname}}
+                  |  
+
+            .col-xs-6
+              
+script(type='text/ng-template', id='templates/game.html')
+  .row
+    .col-lg-2.col-md-12
+      .row
+        .col-lg-12.col-md-3.col-xs-3(ng-repeat='player in game.players | orderBy:"place"')
+          .well.well-sm
+            .row
+              .col-md-4.col-lg-4.col-xs-4
+                img.img-rounded.img-responsive(ng-src='{{player.picture}}')
+              .col-md-8.col-lg-8.col-xs-8
+                h4 {{player.name}}
+            .row(ng-if='!player.place')
+              .col-xs-12
+                p(ng-if='!player.place') Lap #: {{player.lap}}
+                  br
+                  | Lap Time: {{player.lapTime}} sec
+            .row(ng-if='player.place')
+              .col-xs-6 
+                h4 Finish
+              .col-xs-6 
+                h4 Time
+            .row(ng-if='player.place')
+              .col-xs-6 
+                h4 {{player.place}}
+              .col-xs-6 
+                h4 {{player.raceTime}} sec
+
+            .row
+              .col-xs-offset-1.col-xs-10(style='background-color: {{player.color}}')
+                p 
+    .col-lg-8.col-md-12
+      game-board.col-xs-12.center-block(engine='engine')
+    .col-lg-2.col-md-12
+      h3 {{game.name}}
+      p {{game.description}}
+
+      button.btn.btn-lg.btn-primary(ng-if='!game.started && game.players.length > 0', ng-click='start()') Start Game
+      h1.animated.zoomIn(ng-if='started') {{startMessage}}
+
+script(type='text/ng-template', id='templates/gameadd.html')
+  .row
+    .col-xs-6
+      form.form-horizontal(ng-submit='add(game)')
+        fieldset
+          legend Host A New Game
+          .form-group
+            label.col-lg-2.control-label(for='gamename') Name
+            .col-lg-10
+              input.form-control(name='gamename', ng-model='game.name')
+          .form-group
+            label.col-lg-2.control-label(for='description') Description
+            .col-lg-10
+              textarea.form-control(name='description', ng-model='game.description')
+          .form-group
+            .col-lg-10.col-lg-offset-2
+              button.btn.btn-primary Start Game
+              |  
+              button.btn.btn-default(ui-sref='home') Cancel
+
+//- TODO: add Leaderboard binding
+script(type='text/ng-template', id='templates/leader.html')
+  .row
+    .col-sm-12
+      h3 Leader Board
+      hr
+  .row
+    .col-xs-12
+      table.table.leaderboard
+        thead
+          tr
+            th
+            th Name
+            th Game
+            th Time (Seconds)
+        tbody
+          tr(ng-repeat='score in scores')
+            td 
+              img.img-rounded.img-responsive.icon(ng-src='{{score.player.picture}}')
+            td {{score.player.nickname}}
+            td {{score.game.name}}
+            td {{score.finish}}
