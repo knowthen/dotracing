@@ -307,6 +307,7 @@ function setup (io) {
       }
     });
     socket.on('force', function(force){
+      debug('force', profile);
       if(profile && currentGame){
         force.playerId = profile.id;
         if(currentGame){
