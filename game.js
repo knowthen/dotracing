@@ -22,12 +22,6 @@ function setup (io) {
         debug('authenticate', user);
         let claim = jwt.verify(user.token, new Buffer(config.auth.secret, 'base64'));
         
-        // let d = new Date;
-        // d.setDate(d.getDate() + 30);
-        // let claim = {
-        //   exp: d.getTime()
-        // }
-
         if(claim && claim.exp){
           tokenExpDate = new Date(claim.exp * 1000);
           profile = user.profile;
@@ -50,7 +44,9 @@ function setup (io) {
       debug('unauthenticate');
       tokenExpDate = null;
       profile = null;
-      cb();
+      if(cb){
+        cb();
+      }
     });
 
     socket.on('player:ready', function(gameId){
@@ -81,7 +77,9 @@ function setup (io) {
         if(game.started){
           socket.emit('game:started');
         }
-        cb(null, game)
+        if(cb){
+          cb(null, game)
+        }
       }
       else if (game.players.length < 4){
         r.table('game')
@@ -95,18 +93,23 @@ function setup (io) {
             if(result.replaced > 0){
               currentGame = game;
               socket.to(game.id).emit('player:add', profile);
-              cb(null, game);
+              if(cb){
+                cb(null, game);
+              }
             }
             else if (result.unchanged > 0){
-              cb(new Error('Game Already Full, Sorry!'));
+              if(cb){
+                cb(new Error('Game Already Full, Sorry!'));
+              }
             }
           })
       }
 
       else{
         let err = new Error('Game Already Full, Sorry!');
-
-        cb(err);
+        if(cb){
+          cb(err);
+        }
       }
     }
 
@@ -138,7 +141,9 @@ function setup (io) {
 
     socket.on('game:join', function(id, cb){
       if(!isAuthenticated()){
-        cb(new Error('Must be logged in to join game!'))
+        if(cb){
+          cb(new Error('Must be logged in to join game!'))
+        }
       }
       else{
         r.table('game')
@@ -147,18 +152,10 @@ function setup (io) {
             joinGame(game, profile, cb);
           })
           .catch(function(err){
-            cb(err);
+            if(cb){
+              cb(err);
+            }
           });
-        //   .run(gameFound);
-        
-        // function gameFound (err, game) {
-        //   if(err){
-        //     cb(err);
-        //   }
-        //   else{
-        //     joinGame(game, profile, cb);
-        //   }
-        // }
       }
     });
     
@@ -198,16 +195,6 @@ function setup (io) {
           }
         })
 
-        // .run(function(err, result){
-        //   if(err){
-        //     cb(err);
-        //   }
-        //   else{
-        //     record.id = result.generated_keys[0];
-        //     // socket.join(record.id);
-        //     cb(null, record);
-        //   }
-        // })
     });
 
     
@@ -226,25 +213,15 @@ function setup (io) {
             })
           })
         .then(function(){
-          cb(null, data);
+          if(cb){
+            cb(null, data);
+          }
         })
         .catch(function(err){
-          cb(err)
+          if(cb){
+            cb(err)
+          }
         });
-
-      // r.table('game')
-      //   .get(data.gameId)
-      //   .then(function(game){
-      //     game.players.forEach(function(player){
-      //       if(player.id === data.playerId){
-      //         player.color = data.color;
-      //       }
-      //     });
-      //     r.table('game')
-      //       .get(data.gameId)
-      //       .update(game)
-      //       .then();
-      //   })
     });
 
     socket.on('game:changes:start', function(data, cb){
@@ -278,42 +255,16 @@ function setup (io) {
             socket.removeListener(data.stopChangesEventName, stopCursor);
             socket.removeListener('disconnect', stopCursor);
           }
-          cb(null, data);
+          if(cb){
+            cb(null, data);
+          }
         })
         .catch(function(err){
-          cb(err);
+          if(cb){
+            cb(err);
+          }
+          
         })
-
-      //   .run({cursor: true}, handleChange);
-
-      // function handleChange(err, cursor){
-      //   if(err){
-      //     console.log(err); 
-      //   }
-      //   else{
-      //     if(cursor){
-      //       cursor.each(function(err, record){
-      //         if(err){
-      //           console.log(err);
-      //         }
-      //         else{
-      //           socket.emit(data.changesEventName, record);
-      //         }
-      //       });
-      //     }
-      //   }
-      //   socket.on(data.stopChangesEventName, stopCursor);
-      //   socket.on('disconnect', stopCursor);
-
-      //   function stopCursor () {
-      //     if(cursor){
-      //       cursor.close();
-      //     }
-      //     socket.removeListener(data.stopChangesEventName, stopCursor);
-      //     socket.removeListener('disconnect', stopCursor);
-      //   }
-
-      // }
     });
     
     socket.on('game:record:changes:start', function(id){
@@ -353,19 +304,7 @@ function setup (io) {
 
       }
     });
-    // let forceCounter = 0;
-    // let lastTime;
     socket.on('force', function(force){
-      // forceCounter++;
-      // if(forceCounter % 10 === 0){
-      //   let thisTime = new Date();
-      //   if(thisTime && lastTime){
-      //     console.log((thisTime.getTime() - lastTime.getTime())/1000);
-
-          
-      //   }
-      //   lastTime = thisTime;
-      // }
       if(profile && currentGame){
         force.playerId = profile.id;
         if(currentGame){
@@ -383,21 +322,6 @@ function setup (io) {
     });
 
     socket.on('lap', function(info, cb){
-      // r.table('game')
-      //   .get(info.gameId)
-      //   .then(function(game){
-      //     game.players.forEach(function(player){
-      //       if(player.id === info.playerId){
-      //         player.lap = info.lap;
-      //         player.lapTime = info.lapTime;
-      //       }
-      //     });
-      //     r.table('game')
-      //       .get(info.gameId)
-      //       .update(game)
-      //       .then();
-      //   });
-
       r.table('game')
         .get(info.gameId)
         .update({
@@ -413,10 +337,15 @@ function setup (io) {
             })
           })
         .then(function(){
-          cb(null, info);
+          if(cb){
+            cb(null, info);
+          }
+          
         })
         .catch(function(err){
-          cb(err)
+          if(cb){
+            cb(err)
+          }
         });
 
     });
@@ -455,10 +384,14 @@ function setup (io) {
             })
           })
         .then(function(){
-          cb(null, info);
+          if(cb){
+            cb(null, info);
+          }
         })
         .catch(function(err){
-          cb(err)
+          if(cb){
+            cb(err)
+          }
         });
       r.table('game')
         .get(info.gameId)
