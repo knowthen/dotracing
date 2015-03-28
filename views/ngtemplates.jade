@@ -111,6 +111,6 @@ script(type='text/ng-template', id='templates/leader.html')
           tr(ng-repeat='score in scores')
             td 
               img.img-rounded.img-responsive.icon(ng-src='{{score.player.picture}}')
-            td {{score.player.nickname}}
+            td {{score.player.name}} aka - {{score.player.nickname}}
             td {{score.game.name}}
             td {{score.finish}}
