@@ -64,6 +64,28 @@ function Game (options) {
   this.growHandler = function (playerId){
     that.grow(playerId);
   }
+  function forceLoop () {
+    var force;
+    var forceMultipler = 0.025;
+    for (var id in that.players){
+      var player = that.players[id];
+      force = null;
+      if(player.forceQueue && player.forceQueue.length > 0){
+        force = player.forceQueue.shift();
+        if(force){
+
+          Body.applyForce(player,
+            {x: 0, y: 0},
+            {x: force.x * forceMultipler, y: -1 * force.y * forceMultipler}
+          );
+        }
+      }
+    }
+    if(!that.stopped){
+      setTimeout(forceLoop, 100);
+    }
+  }
+  this.forceLoop = forceLoop;
 }
 
 Game.prototype.emit = function(event, data) {
@@ -115,7 +137,7 @@ Game.prototype.addPlayer = function(player) {
     playerId: player.id,
     color: color
   });
-
+  body.forceQueue = [];
   this.players[player.id] = body;
   if(this.engine){
     World.add(this.engine.world, body);
@@ -128,11 +150,10 @@ Game.prototype.applyForce = function(force) {
     return;
   }
   player = this.players[force.playerId]
-  forceMultipler = 0.02;
-  Body.applyForce(player,
-    {x: 0, y: 0},
-    {x: force.x * forceMultipler, y: -1 * force.y * forceMultipler}
-  );
+  player.forceQueue = [];
+  player.forceQueue.push(force);
+  player.forceQueue.push(force);
+  player.forceQueue.push(force);
 };
 
 Game.prototype.grow = function(playerId) {
@@ -314,6 +335,7 @@ Game.prototype._start = function() {
   this.socket.emit('game:started', this.gameId);
   this.started = true;
   this.startTime = new Date
+  this.forceLoop();
   for (var id in this.players){
     if (this.players.hasOwnProperty(id)) {
       this.shrink(this.players[id]);

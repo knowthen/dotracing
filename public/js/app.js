@@ -104,7 +104,7 @@ app.run(function($rootScope, $state, auth, store, jwtHelper){
 
 function homeCtrl($scope, bindTable, supported){
   var openGameTable, activeGameTable, gameTable;
-  gameTable = bindTable('game');
+  gameTable = bindTable('game', 20);
   gameTable.bind({status: 'new'});
 
 

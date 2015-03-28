@@ -298,7 +298,6 @@ function setup (io) {
         function stopCursor () {
           if(cursor){
             cursor.close();
-            console.log('closing cursor ' + id);
           }
           socket.removeListener('game:record:changes:stop:' + id, stopCursor);
           socket.removeListener('disconnect', stopCursor);
@@ -355,7 +354,7 @@ function setup (io) {
     });
 
     socket.on('finish', function(info, cb){
-      var score;
+      var score, player;
       debug('finished', info, profile);
 
       r.table('game')
@@ -386,16 +385,17 @@ function setup (io) {
       r.table('game')
         .get(info.gameId)
         .then(function(game){
+          game.players.forEach(function(p){
+            if(p.id === info.playerId){
+              player = p;
+            }
+          })
           score = {
             game: {
               id: game.id,
               name: game.name
             },
-            player: {
-              id: info.playerId,
-              nickname: profile.nickname,
-              picture: profile.picture
-            },
+            player: player,
             finish: info.raceTime,
             place: info.place
           };
@@ -406,6 +406,7 @@ function setup (io) {
       
     });
     
+    // TODO: add leaderboard
     socket.on('score:changes:start', function(data, cb){
       let limit, filter;
       limit = data.limit || 100;

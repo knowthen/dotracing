@@ -203,7 +203,7 @@ function loginCtrl($scope, $q, store, auth, socket) {
 function gameCtrl ($scope, $stateParams, $window, $state, socket, bindTable) {
   var lastForce, nextForce;
   var gameId = $stateParams.id;
-  var limiter = new Bottleneck(1, 80, 1);
+  var limiter = new Bottleneck(1, 60, 1);
 
   gameTable = bindTable('game');
   gameTable.bindRecord(gameId);
@@ -225,7 +225,7 @@ function gameCtrl ($scope, $stateParams, $window, $state, socket, bindTable) {
   $scope.grow = function(){
     socket.emit('grow');
   }
-  function sendForce (force, gid, cb) {
+  function sendForce (force, cb) {
     socket.emit('force', force);
     cb();
   }
@@ -242,8 +242,10 @@ function gameCtrl ($scope, $stateParams, $window, $state, socket, bindTable) {
     force = {
       x: x,
       y: y,
-      z: z
+      z: z, 
+      game: gameTable.row
     };
+    // socket.emit('force', force);
     // now = new Date();
     // if(!lastForce){
     //   lastForce = now;
@@ -252,7 +254,8 @@ function gameCtrl ($scope, $stateParams, $window, $state, socket, bindTable) {
     //   // socket.emit('force', force);
     //   lastForce = now;
     // }
-    limiter.submit(sendForce, force, gameId, null);
+
+    limiter.submit(sendForce, force, null);
   }
 
   $scope.$on('$destroy', function(){
