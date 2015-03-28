@@ -389,13 +389,20 @@ function setup (io) {
             if(p.id === info.playerId){
               player = p;
             }
-          })
+          });
+          player = player || {};
           score = {
             game: {
               id: game.id,
               name: game.name
             },
-            player: player,
+            player: {
+              id: player.id,
+              description: player.description,
+              name: player.name,
+              nickname: player.nickname,
+              picture: player.picture
+            },
             finish: info.raceTime,
             place: info.place
           };
