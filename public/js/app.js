@@ -12,6 +12,7 @@ app.factory('socket', function(socketFactory){
 });
 
 app.factory('bindTable', function(bindTableFactory, socket){
+  
   return bindTableFactory({socket: socket});
 });
 
@@ -59,8 +60,7 @@ app.config(function($stateProvider, $locationProvider, $httpProvider) {
     // TODO: add Leader Ctrl
     .state('leader', {
       url: '/leader',
-      templateUrl: 'templates/leader.html',
-      controller: 'LeaderCtrl'
+      templateUrl: 'templates/leader.html'
     })
     .state('otherwise', {
       url: '/',
@@ -73,10 +73,8 @@ app
   .controller('HomeCtrl', homeCtrl)
   .controller('GameCtrl', gameCtrl)
   .controller('GameAddCtrl', gameAddCtrl)
-  .controller('LoginCtrl', loginCtrl)
+  .controller('LoginCtrl', loginCtrl);
   // TODO: add LeaderCtrl
-  .controller('LeaderCtrl', leaderCtrl);
-  
 
 app.run(function($rootScope, $state, auth, store, jwtHelper){
   $rootScope.$on('$locationChangeStart', function(){
@@ -99,14 +97,12 @@ app.run(function($rootScope, $state, auth, store, jwtHelper){
         $state.go('home');
       }
     });
-})
-
+});
 
 function homeCtrl($scope, bindTable, supported){
   var openGameTable, activeGameTable, gameTable;
   gameTable = bindTable('game', 20);
   gameTable.bind({status: 'new'});
-
 
   $scope.games = gameTable.rows;
   $scope.supported = supported;
@@ -184,13 +180,6 @@ function gameAddCtrl ($scope, $state, auth, bindTable) {
   }
 }
 // TODO: add leaderCtrl function
-function leaderCtrl ($scope, bindTable) {
-  var scoreTable = bindTable('score', {sortBy: 'finish'});
-  scoreTable.bind(null, 10);
-  $scope.scores = scoreTable.rows;
 
-  $scope.$on('$destroy', function(){
-    scoreTable.unBind();
-  });
-}
+
 })();

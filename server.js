@@ -23,7 +23,7 @@ app.use(function *(){
   else{
     this.body = yield render('index');
   }
-})
+});
 
 server = http.Server(app.callback());
 

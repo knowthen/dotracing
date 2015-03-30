@@ -22,7 +22,7 @@ script(type='text/ng-template', id='templates/home.html')
         span(ng-if='!supported.client') (From Cell Phone)
 
       .list-group
-        .list-group-item(ng-repeat='game in games | filter: {status: "new"}')
+        .list-group-item(ng-repeat='game in games')
           .row
             .col-xs-6
               h4.list-group-item-heading {{game.name}}
@@ -108,9 +108,11 @@ script(type='text/ng-template', id='templates/leader.html')
             th Game
             th Time (Seconds)
         tbody
-          tr(ng-repeat='score in scores')
+          //- TODO: iterate scores
+          tr
             td 
-              img.img-rounded.img-responsive.icon(ng-src='{{score.player.picture}}')
-            td {{score.player.name || score.player.nickname}}
-            td {{score.game.name}}
-            td {{score.finish}}
+              img.img-rounded.img-responsive.icon(
+                src='http://placehold.it/48x48&text=Winner')
+            td James Moore
+            td Game of Champions
+            td 21.4

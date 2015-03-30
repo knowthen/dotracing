@@ -14,54 +14,10 @@ function setup (io) {
     let currentGame = null;
     
     function isAuthenticated () {
+
       return tokenExpDate && tokenExpDate >= new Date;
     }
     
-    socket.on('authenticate', function(user, cb){
-      try{
-        debug('authenticate', user);
-        let claim = jwt.verify(user.token, new Buffer(config.auth.secret, 'base64'));
-        
-        if(claim && claim.exp){
-          tokenExpDate = new Date(claim.exp * 1000);
-          profile = user.profile;
-          profile.id = profile.user_id;
-        }
-        if(cb){
-          cb(null, claim);
-        }
-        
-      }
-      catch(err){
-        if(cb){
-          cb(err);
-        }
-        
-      }
-    });
-    
-    socket.on('unauthenticate', function(data, cb){
-      debug('unauthenticate');
-      tokenExpDate = null;
-      profile = null;
-      if(cb){
-        cb();
-      }
-    });
-
-    socket.on('player:ready', function(gameId){
-      r.table('game')
-        .get(gameId)
-        .then(function(game){
-          game.players.forEach(function(player){
-            if(profile && player.id === profile.id){
-              currentGame = game;
-              socket.join(gameId);
-            }
-          })
-        })
-    });
-
     function joinGame (game, profile, cb) {
       let joined = false;
       let players = game.players;
@@ -113,6 +69,51 @@ function setup (io) {
       }
     }
 
+    socket.on('authenticate', function(user, cb){
+      try{
+        debug('authenticate', user);
+        let claim = jwt.verify(user.token, new Buffer(config.auth.secret, 'base64'));
+        
+        if(claim && claim.exp){
+          tokenExpDate = new Date(claim.exp * 1000);
+          profile = user.profile;
+          profile.id = profile.user_id;
+        }
+        if(cb){
+          cb(null, claim);
+        }
+        
+      }
+      catch(err){
+        if(cb){
+          cb(err);
+        }
+        
+      }
+    });
+    
+    socket.on('unauthenticate', function(data, cb){
+      debug('unauthenticate');
+      tokenExpDate = null;
+      profile = null;
+      if(cb){
+        cb();
+      }
+    });
+
+    socket.on('player:ready', function(gameId){
+      r.table('game')
+        .get(gameId)
+        .then(function(game){
+          game.players.forEach(function(player){
+            if(profile && player.id === profile.id){
+              currentGame = game;
+              socket.join(gameId);
+            }
+          })
+        })
+    });
+
     socket.on('game:started', function(gameId, cb){
       r.table('game')
         .get(gameId)
@@ -134,9 +135,23 @@ function setup (io) {
     socket.on('game:stopped', function(gameId, cb){
       socket.to(gameId).emit('game:stopped');
       socket.leave(gameId);
-      if(cb){
-        cb(null, gameId);
-      }
+      r.table('game')
+        .get(gameId)
+        .update({
+          status: 'stopped'
+        })
+        .then(function(result){
+          if(cb){
+            cb(null, gameId);
+          }
+        })
+        .catch(function(err){
+          console.log(err);
+          if(cb){
+            cb(err);
+          }
+        });
+      
     });
 
     socket.on('game:join', function(id, cb){
@@ -166,14 +181,14 @@ function setup (io) {
     });
 
     socket.on('join:room', function(gameId){
+
       socket.join(gameId);
     });
 
-
     socket.on('leave:game', function(gameId){
+
       socket.leave(gameId);
     });
-    
 
     socket.on('game:add', function(record, cb){
       record = _.pick(record, 'name', 'description');
@@ -194,10 +209,7 @@ function setup (io) {
             cb(err);
           }
         })
-
     });
-
-    
 
     socket.on('player:color', function(data, cb){
 
@@ -305,6 +317,7 @@ function setup (io) {
 
       }
     });
+
     socket.on('force', function(force){
       debug('force', profile);
       if(profile && currentGame){
@@ -350,7 +363,6 @@ function setup (io) {
             cb(err)
           }
         });
-
     });
 
     socket.on('finish', function(info, cb){
@@ -410,47 +422,10 @@ function setup (io) {
             .insert(score)
             .then();
         });
-      
     });
     
     // TODO: add leaderboard
-    socket.on('score:changes:start', function(data, cb){
-      let limit, filter;
-      limit = data.limit || 100;
-      filter = data.filter || {};
-      r.table('score')
-        .orderBy({index: 'finish'})
-        .filter(filter)
-        .limit(limit)
-        .changes()
-        .then(function(cursor){
-          cursor.each(function(err, record){
-            if(err){
-              console.log(err);
-            }
-            socket.emit(data.changesEventName, record);
-          });
-          socket.on(data.stopChangesEventName, stopCursor);
-          socket.on('disconnect', stopCursor);
-          function stopCursor () {
-            
-            if(cursor){
-              cursor.close();
-            }
-            socket.removeListener(data.stopChangesEventName, stopCursor);
-            socket.removeListener('disconnect', stopCursor);
-          }
-          if(cb){
-            cb(null, data);
-          }
-        })
-        .catch(function(err){
-          if(cb){
-            cb(err);
-          }
-          console.log(err);
-        });
-    });
+    
 
   });
 
