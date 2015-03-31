@@ -109,10 +109,10 @@ script(type='text/ng-template', id='templates/leader.html')
             th Time (Seconds)
         tbody
           //- TODO: iterate scores
-          tr
+          tr(ng-repeat='score in scores')
             td 
               img.img-rounded.img-responsive.icon(
-                src='https://placehold.it/48x48&text=Winner')
-            td James Moore
-            td Game of Champions
-            td 21.9
+                src='{{score.player.picture}}')
+            td {{score.player.name}}
+            td {{score.game.name}}
+            td {{score.finish}}

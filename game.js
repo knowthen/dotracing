@@ -425,7 +425,43 @@ function setup (io) {
     });
     
     // TODO: add leaderboard
-    
+    socket.on('score:changes:start', function(data, cb){
+      let limit, filter;
+      limit = data.limit || 100;
+      filter = data.filter || {};
+      r.table('score')
+        .orderBy({index: 'finish'})
+        .filter(filter)
+        .limit(limit)
+        .changes()
+        .then(function(cursor){
+          cursor.each(function(err, record){
+            if(err){
+              console.log(err);
+            }
+            socket.emit(data.changesEventName, record);
+          });
+          socket.on(data.stopChangesEventName, stopCursor);
+          socket.on('disconnect', stopCursor);
+          function stopCursor () {
+            
+            if(cursor){
+              cursor.close();
+            }
+            socket.removeListener(data.stopChangesEventName, stopCursor);
+            socket.removeListener('disconnect', stopCursor);
+          }
+          if(cb){
+            cb(null, data);
+          }
+        })
+        .catch(function(err){
+          if(cb){
+            cb(err);
+          }
+          console.log(err);
+        });
+    });
 
   });
 

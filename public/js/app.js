@@ -60,7 +60,8 @@ app.config(function($stateProvider, $locationProvider, $httpProvider) {
     // TODO: add Leader Ctrl
     .state('leader', {
       url: '/leader',
-      templateUrl: 'templates/leader.html'
+      templateUrl: 'templates/leader.html',
+      controller: 'LeaderCtrl'
     })
     .state('otherwise', {
       url: '/',
@@ -73,7 +74,8 @@ app
   .controller('HomeCtrl', homeCtrl)
   .controller('GameCtrl', gameCtrl)
   .controller('GameAddCtrl', gameAddCtrl)
-  .controller('LoginCtrl', loginCtrl);
+  .controller('LoginCtrl', loginCtrl)
+  .controller('LeaderCtrl', leaderCtrl);
   // TODO: add LeaderCtrl
 
 app.run(function($rootScope, $state, auth, store, jwtHelper){
@@ -180,6 +182,14 @@ function gameAddCtrl ($scope, $state, auth, bindTable) {
   }
 }
 // TODO: add leaderCtrl function
+function leaderCtrl($scope, bindTable){
+  var scoreTable = bindTable('score', {sortBy: 'finish'});
+  scoreTable.bind(null, 10);
+  $scope.scores = scoreTable.rows;
 
+  $scope.$on('$destroy', function(){
+    scoreTable.unBind();
+  });
+}
 
 })();
